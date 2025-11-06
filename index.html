@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sistema de Patrulha — Linha do Tempo de Conquistas</title>
+  <style>
+    :root{
+      --bg:#f8fafb; --card:#ffffff; --muted:#6b7280; --accent:#0b5cff; --line:#d1d5db;
+      --green:#16a34a; --yellow:#f59e0b; --red:#ef4444; --gray:#64748b;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#111827}
+    .wrap{max-width:900px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .controls{display:flex;gap:8px;align-items:center}
+    select, button, input{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card)}
+
+    .timeline{position:relative;padding-left:40px}
+    /* vertical line */
+    .timeline::before{content:"";position:absolute;left:28px;top:0;bottom:0;width:4px;background:linear-gradient(#e6eefc,#f3f7fb);border-radius:2px}
+
+    .event{display:flex;align-items:flex-start;gap:16px;padding:18px 12px;background:transparent;border-radius:8px}
+    .date{width:72px;font-size:13px;color:var(--muted);text-align:right;margin-top:6px}
+    .dot-wrap{width:36px;display:flex;justify-content:center}
+    .dot{width:18px;height:18px;border-radius:50%;border:4px solid #fff;box-shadow:0 0 0 3px var(--card), 0 2px 6px rgba(2,6,23,0.06);display:flex;align-items:center;justify-content:center}
+    .node{width:44px;height:44px;border-radius:6px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;background:#fff}
+
+    .content{flex:1;padding:6px 14px;border-radius:8px}
+    .title{font-weight:700;color:#374151;margin:0}
+    .sub{color:var(--muted);margin:6px 0 0;font-size:13px}
+
+    .badge{display:inline-block;padding:6px 8px;border-radius:999px;font-size:12px;margin-left:8px;border:1px solid var(--line);background:#fff}
+
+    /* small screens */
+    @media (max-width:520px){.wrap{padding:12px} .date{display:none}.timeline::before{left:20px}.dot-wrap{width:28px}.node{width:36px;height:36px}}
+
+    /* form */
+    .form-row{display:flex;gap:8px;margin-top:12px}
+    textarea{width:100%;min-height:56px;padding:8px;border-radius:6px;border:1px solid var(--line)}
+    .muted-line{font-size:13px;color:var(--muted);margin-top:6px}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Sistema de Patrulha — Linha do Tempo de Conquistas</h1>
+      <div class="controls">
+        <label for="patrol">Patrulha:</label>
+        <select id="patrol"></select>
+        <button id="btnAdd">+ Adicionar</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="timeline" class="timeline" aria-live="polite"></div>
+
+      <div id="formArea" style="display:none;margin-top:12px">
+        <div class="muted-line">Adicionar conquista (visível somente localmente)</div>
+        <div class="form-row">
+          <input id="dateField" placeholder="Ex: Jun 2025" />
+          <input id="titleField" placeholder="Título da conquista" />
+          <input id="levelField" placeholder="Nível (ex: Nível 1)" />
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="colorField" placeholder="cor (ex: #16a34a)" />
+          <button id="saveBtn">Salvar</button>
+          <button id="cancelBtn">Cancelar</button>
+        </div>
+      </div>
+
+    </main>
+
+    <footer>Os dados são carregados localmente. Você pode editar o script para adicionar/remover conquistas ou usar o botão <strong>Adicionar</strong>.</footer>
+  </div>
+
+  <script>
+    // Dados de exemplo — personalize conforme necessário
+    const patrulhas = {
+      "Patrulha Gralha Azul": [
+        {date: 'Set 2025', title: 'Plantas Medicinais', level: 'Nível 1', color:'#16a34a', icon:'🌿'},
+        {date: 'Jun 2025', title: 'Trilha', level: '', color:'#10b981', icon:'🥾'},
+        {date: 'Jun 2025', title: 'Matemática', level: 'Nível 2', color:'#0ea5e9', icon:'🔢'}
+      ],
+      "Patrulha Orion": [
+        {date: 'Jun 2025', title: 'Cordão Verde e Amarelo', level: '', color:'#f59e0b', icon:'🪢'},
+        {date: 'Jun 2025', title: 'Slime', level: 'Nível 2', color:'#8b5cf6', icon:'🧪'},
+        {date: 'Jun 2025', title: 'Natação', level: 'Nível 1', color:'#06b6d4', icon:'🏊'}
+      ],
+      "Patrulha Pantera": [
+        {date: 'Mai 2025', title: 'Ferramentas de corte', level: 'Nível 2', color:'#ef4444', icon:'🔪'},
+        {date: 'Abr 2025', title: 'Matemática', level: 'Nível 1', color:'#64748b', icon:'📐'}
+      ],
+      "Patrulha Phoenix": [
+        {date: 'Mar 2025', title: 'Natação', level: 'Nível 2', color:'#0ea5a0', icon:'🏆'},
+        {date: 'Fev 2025', title: 'Slime', level: 'Nível 1', color:'#a78bfa', icon:'🧴'}
+      ]
+    };
+
+    const patrolSelect = document.getElementById('patrol');
+    const timelineEl = document.getElementById('timeline');
+    const btnAdd = document.getElementById('btnAdd');
+    const formArea = document.getElementById('formArea');
+    const dateField = document.getElementById('dateField');
+    const titleField = document.getElementById('titleField');
+    const levelField = document.getElementById('levelField');
+    const colorField = document.getElementById('colorField');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    function init(){
+      // popular select
+      Object.keys(patrulhas).forEach(name => {
+        const opt = document.createElement('option'); opt.value = name; opt.textContent = name; patrolSelect.appendChild(opt);
+      });
+      patrolSelect.addEventListener('change', render);
+      btnAdd.addEventListener('click', ()=>{formArea.style.display='block';});
+      cancelBtn.addEventListener('click', ()=>{formArea.style.display='none';});
+      saveBtn.addEventListener('click', addAchievement);
+      // selecionar primeira
+      patrolSelect.selectedIndex = 0;
+      render();
+    }
+
+    function render(){
+      const name = patrolSelect.value;
+      const list = (patrulhas[name] || []).slice().reverse(); // mostrar cronológico reverso (mais recente em cima)
+      timelineEl.innerHTML = '';
+      list.forEach(item => timelineEl.appendChild(createEventNode(item)));
+    }
+
+    function createEventNode(item){
+      const ev = document.createElement('div'); ev.className='event';
+      const date = document.createElement('div'); date.className='date'; date.textContent = item.date || '';
+      const dotWrap = document.createElement('div'); dotWrap.className='dot-wrap';
+      const dot = document.createElement('div'); dot.className='dot';
+      const node = document.createElement('div'); node.className='node';
+      // icon inside node — usando emoji simples para compatibilidade
+      const ic = document.createElement('div'); ic.style.fontSize='18px'; ic.textContent = item.icon || '🏅';
+      node.style.borderColor = item.color || 'var(--line)';
+      node.appendChild(ic);
+      dot.appendChild(node);
+      dotWrap.appendChild(dot);
+
+      const content = document.createElement('div'); content.className='content';
+      const title = document.createElement('h3'); title.className='title'; title.textContent = item.title || 'Conquista';
+      const badge = document.createElement('span'); badge.className='badge'; badge.textContent = item.level || '';
+      if(badge.textContent) title.appendChild(badge);
+
+      const sub = document.createElement('div'); sub.className='sub'; sub.textContent = item.date? '': '';
+
+      content.appendChild(title);
+      content.appendChild(sub);
+
+      ev.appendChild(date);
+      ev.appendChild(dotWrap);
+      ev.appendChild(content);
+
+      return ev;
+    }
+
+    function addAchievement(){
+      const name = patrolSelect.value;
+      const date = dateField.value.trim() || 'Data';
+      const title = titleField.value.trim() || 'Nova conquista';
+      const level = levelField.value.trim();
+      const color = colorField.value.trim() || '#06b6d4';
+      if(!patrulhas[name]) patrulhas[name]=[];
+      patrulhas[name].push({date,title,level,color,icon:'🏅'});
+      formArea.style.display='none';
+      dateField.value=''; titleField.value=''; levelField.value=''; colorField.value='';
+      render();
+    }
+
+    // inicializa
+    init();
+  </script>
+</body>
+</html>
